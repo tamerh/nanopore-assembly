@@ -1,0 +1,31 @@
+# Pipeline outputs (logs co-located inside results/<project>/)
+results/
+.snakemake/
+
+# Input data — keep folder structure, ignore the actual sequencing files
+resources/*/samples/**/*.fastq*
+resources/*/samples/**/*.fq*
+resources/*/samples/**/*.pod5
+resources/*/samples/**/*.fast5
+
+# Downloaded reference databases (~GB-scale)
+resources/databases/
+
+# Conda / mamba caches
+*.conda-lock.yml
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+notes/
+notes*.pdf
+notes*.md 

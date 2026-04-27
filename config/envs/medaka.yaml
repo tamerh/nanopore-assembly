@@ -1,0 +1,7 @@
+name: nanopore-assembly-medaka
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - medaka>=2.0

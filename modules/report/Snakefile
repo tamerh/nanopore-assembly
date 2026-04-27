@@ -1,0 +1,92 @@
+"""
+report — bundled HTML report.
+
+Stage 5. Inputs: outputs of all previous stages. Outputs: a MultiQC
+aggregate (HTML) and a top-level standalone report (HTML) summarizing
+methods, results, and the headline finding per sample.
+
+Tools:
+  - MultiQC   aggregate per-tool outputs (NanoPlot, QUAST, ...)
+  - Python + Jinja2  render the top-level report from per-stage TSVs
+
+PDF output is a polish-pass concern; HTML only for now.
+"""
+
+OUTDIR = config["outdir"]
+SAMPLES = config["samples"]
+
+
+rule multiqc:
+    """Aggregate per-tool QC outputs into a single MultiQC HTML."""
+    input:
+        nanoplot_raw = expand(f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_raw/NanoStats.txt", sample=SAMPLES),
+        nanoplot_filt = expand(f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_filtered/NanoStats.txt", sample=SAMPLES),
+        quast = expand(f"{OUTDIR}/qc_assembly/{{sample}}/quast/report.tsv", sample=SAMPLES),
+    output:
+        html = f"{OUTDIR}/report/multiqc/multiqc_report.html",
+    log:
+        f"{OUTDIR}/report/multiqc.log",
+    threads: 1
+    conda:
+        "nanopore-assembly-report"
+    params:
+        outdir = f"{OUTDIR}/report/multiqc",
+        scan_dir = OUTDIR,
+    shell:
+        r"""
+        # -d --dd 2  : prepend 2 parent dir names to sample names so e.g.
+        #              nanoplot_raw/NanoStats.txt and nanoplot_filtered/NanoStats.txt
+        #              don't collide on basename alone.
+        # --ignore   : NanoPlot writes a redundant *_post_filtering.txt that
+        #              duplicates NanoStats.txt when no internal --minlength is
+        #              set; suppress it so MultiQC doesn't double-count.
+        multiqc {params.scan_dir} \
+            -o {params.outdir} \
+            -f --force \
+            -d -dd 2 \
+            --ignore '*post_filtering*' \
+            > {log} 2>&1
+        """
+
+
+rule versions:
+    """Collect installed tool versions across all per-rule envs into a TSV.
+    No `conda:` directive — uses host conda to query named envs."""
+    output:
+        f"{OUTDIR}/report/versions.tsv",
+    log:
+        f"{OUTDIR}/report/versions.log",
+    threads: 1
+    script:
+        "scripts/get_versions.py"
+
+
+rule build_report:
+    """Render the top-level standalone HTML report from per-stage TSVs."""
+    input:
+        qc_summary = expand(f"{OUTDIR}/qc_reads/{{sample}}/qc_summary.tsv", sample=SAMPLES),
+        adapter_scan = expand(f"{OUTDIR}/qc_reads/{{sample}}/adapter_scan.tsv", sample=SAMPLES),
+        flye_info = expand(f"{OUTDIR}/assembly/{{sample}}/flye/assembly_info.txt", sample=SAMPLES),
+        seqkit = expand(f"{OUTDIR}/qc_assembly/{{sample}}/seqkit_stats.tsv", sample=SAMPLES),
+        quast = expand(f"{OUTDIR}/qc_assembly/{{sample}}/quast/report.tsv", sample=SAMPLES),
+        checkv = expand(f"{OUTDIR}/qc_assembly/{{sample}}/checkv/quality_summary.tsv", sample=SAMPLES),
+        pharokka_cds = expand(f"{OUTDIR}/characterize/{{sample}}/pharokka/pharokka_cds_functions.tsv", sample=SAMPLES),
+        pharokka_tax = expand(f"{OUTDIR}/characterize/{{sample}}/pharokka/pharokka_top_hits_mash_inphared.tsv", sample=SAMPLES),
+        multiqc = rules.multiqc.output.html,
+        versions = rules.versions.output,
+        template = "modules/report/templates/report.html.j2",
+    output:
+        html = f"{OUTDIR}/report/report.html",
+    log:
+        f"{OUTDIR}/report/build_report.log",
+    threads: 1
+    conda:
+        "nanopore-assembly-report"
+    params:
+        project = config.get("project", "default"),
+        results_root = OUTDIR,
+        samples = list(SAMPLES),
+        sample_metadata = {sid: {k: v for k, v in row.items() if k not in ("fastq",)}
+                           for sid, row in SAMPLES.items()},
+    script:
+        "scripts/build_report.py"

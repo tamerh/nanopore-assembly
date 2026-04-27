@@ -1,0 +1,74 @@
+# ============================================================================
+# Pipeline configuration
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Project — selects which sample sheet to load.
+# Sheet path: config/projects/<project>/samples.tsv
+# Inputs:    resources/<project>/samples/<sample_id>/<fastq_filename>
+# Outputs:   results/<project>/<stage>/<sample_id>/...    (logs co-located)
+# Override at the CLI: snakemake --config project=<other> ...
+# ----------------------------------------------------------------------------
+project: phage_demo
+
+# ----------------------------------------------------------------------------
+# Read QC and filtering (Filtlong)
+# ----------------------------------------------------------------------------
+read_filter:
+  min_length: 1000
+  # Filtlong's `--min_mean_q` is on its own 0–100 percentage-accuracy scale,
+  # NOT Phred. Mapping: Phred 7 ≈ 80, Phred 10 ≈ 90, Phred 13 ≈ 95, Phred 20 ≈ 99.
+  # 90 (~Q10) is a sane default for HAC-basecalled R10.4.1 data.
+  min_mean_q: 90
+  # Subsample to this many bases (Filtlong keeps the highest-quality reads
+  # by length × Q until the budget is hit). 0 disables.
+  # 10 Mb gives ~100× on a 100 kb phage, ~200× on 50 kb, ~50× on 200 kb —
+  # spans the typical phage size range with reasonable coverage everywhere.
+  target_bases: 10000000
+
+# ----------------------------------------------------------------------------
+# Assembly (Flye)
+# ----------------------------------------------------------------------------
+assembly:
+  # Rough expected genome size — Flye uses this as a hint, not a constraint.
+  # ~100 kb covers most phages comfortably.
+  genome_size: "100k"
+
+# ----------------------------------------------------------------------------
+# Polishing (medaka)
+# Model MUST match the basecaller that produced the reads.
+# Our data: dna_r10.4.1_e8.2_260bps_hac-v4.1.0
+# ----------------------------------------------------------------------------
+medaka:
+  model: r1041_e82_260bps_hac_v4.1.0
+
+# ----------------------------------------------------------------------------
+# QC thresholds
+# ----------------------------------------------------------------------------
+qc:
+  # Minimum contig length to keep. NCBI minimum is 200; 500 is conservative.
+  min_contig_length: 500
+
+# ----------------------------------------------------------------------------
+# CheckV (viral completeness / contamination)
+# ----------------------------------------------------------------------------
+checkv:
+  # Parent directory for the CheckV database. `./pipeline.sh install` downloads
+  # ~5 GB into <db_path>/checkv-db-v<version>/ and symlinks it to
+  # <db_path>/current/. Reference DBs live under resources/databases/<tool>/
+  # following the Snakemake convention.
+  db_path: resources/databases/checkv
+
+# ----------------------------------------------------------------------------
+# Pharokka (phage annotation: ORFs, tRNAs, terminase, lifestyle, taxonomy)
+# ----------------------------------------------------------------------------
+pharokka:
+  # Pharokka's installer writes DB files flat into the target dir
+  # (no version subdir like CheckV). ~1.2 GB one-time download.
+  db_path: resources/databases/pharokka
+
+# ----------------------------------------------------------------------------
+# Resources and output (project name is appended at runtime)
+# ----------------------------------------------------------------------------
+threads: 8
+outdir: results

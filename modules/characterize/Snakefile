@@ -1,0 +1,62 @@
+"""
+characterize — biological characterization of assembled contigs.
+
+Stage 4. Inputs: polished assembly FASTA from the assembly module.
+Outputs: Pharokka annotation (GFF, GBK, FAA, functional categories,
+taxonomic placement via Mash against INPHARED).
+
+Tools:
+  - Pharokka  phage annotation pipeline:
+                * PHANOTATE (phage-aware ORF caller)
+                * tRNAscan-SE, ARAGORN (tRNAs/tmRNAs)
+                * MinCED (CRISPR arrays)
+                * PyHMMER vs PHROGS (functional categories)
+                * Mash vs INPHARED (taxonomic placement)
+                * --dnaapler rotates circular genomes to terminase start
+                  (replaces --reorient in Pharokka 1.7+)
+
+Note: in `meta` mode (not implemented), geNomad would be added upstream
+to classify viral vs non-viral contigs before characterization.
+"""
+
+OUTDIR = config["outdir"]
+SAMPLES = config["samples"]
+PHAROKKA_DB = config["pharokka"]["db_path"]
+
+
+def medaka_fasta(wildcards):
+    return f"{OUTDIR}/assembly/{wildcards.sample}/medaka/consensus.fasta"
+
+
+rule pharokka:
+    """End-to-end phage annotation. --dnaapler rotates to terminase start
+    if one is identified (safe — falls back to no rotation otherwise)."""
+    input:
+        fasta = medaka_fasta,
+    output:
+        gff = f"{OUTDIR}/characterize/{{sample}}/pharokka/pharokka.gff",
+        gbk = f"{OUTDIR}/characterize/{{sample}}/pharokka/pharokka.gbk",
+        # Pharokka 1.9 renamed: pharokka.faa → phanotate.faa,
+        # top_hits_mash_inphared.tsv → pharokka_top_hits_mash_inphared.tsv
+        faa = f"{OUTDIR}/characterize/{{sample}}/pharokka/phanotate.faa",
+        cds_functions = f"{OUTDIR}/characterize/{{sample}}/pharokka/pharokka_cds_functions.tsv",
+        taxonomy = f"{OUTDIR}/characterize/{{sample}}/pharokka/pharokka_top_hits_mash_inphared.tsv",
+    log:
+        f"{OUTDIR}/characterize/{{sample}}/pharokka.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-pharokka"
+    params:
+        outdir = lambda w: f"{OUTDIR}/characterize/{w.sample}/pharokka",
+        db = PHAROKKA_DB,
+    shell:
+        r"""
+        rm -rf {params.outdir}
+        pharokka.py \
+            -i {input.fasta} \
+            -o {params.outdir} \
+            -d {params.db} \
+            -t {threads} \
+            --dnaapler \
+            > {log} 2>&1
+        """

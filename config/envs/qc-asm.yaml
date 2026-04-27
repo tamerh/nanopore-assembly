@@ -1,0 +1,10 @@
+name: nanopore-assembly-qc-asm
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python>=3.10
+  - quast>=5.2
+  - checkv>=1.0
+  - seqkit>=2.5

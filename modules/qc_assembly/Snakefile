@@ -1,0 +1,90 @@
+"""
+qc_assembly — assembly quality control.
+
+Stage 3. Inputs: polished assembly FASTA from the assembly module.
+Outputs: seqkit stats TSV, QUAST report, CheckV quality summary.
+
+Tools:
+  - seqkit   basic FASTA stats
+  - QUAST    length, N50, GC, contig count, HTML report
+  - CheckV   viral genome completeness + host contamination, DTR detection
+"""
+
+OUTDIR = config["outdir"]
+
+CHECKV_DB_PARENT = config["checkv"]["db_path"]
+CHECKV_DB_CURRENT = f"{CHECKV_DB_PARENT}/current"
+
+
+def medaka_fasta(wildcards):
+    return f"{OUTDIR}/assembly/{wildcards.sample}/medaka/consensus.fasta"
+
+
+rule seqkit_stats:
+    """Quick FASTA summary — length, N50, GC, gap content."""
+    input:
+        medaka_fasta,
+    output:
+        f"{OUTDIR}/qc_assembly/{{sample}}/seqkit_stats.tsv",
+    log:
+        f"{OUTDIR}/qc_assembly/{{sample}}/seqkit_stats.log",
+    threads: 1
+    conda:
+        "nanopore-assembly-qc-asm"
+    shell:
+        r"""
+        seqkit stats -a -T {input} > {output} 2> {log}
+        """
+
+
+rule quast:
+    """QUAST — length/N50/GC stats and an HTML report."""
+    input:
+        medaka_fasta,
+    output:
+        report = f"{OUTDIR}/qc_assembly/{{sample}}/quast/report.tsv",
+        html = f"{OUTDIR}/qc_assembly/{{sample}}/quast/report.html",
+    log:
+        f"{OUTDIR}/qc_assembly/{{sample}}/quast.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-qc-asm"
+    params:
+        outdir = lambda w: f"{OUTDIR}/qc_assembly/{w.sample}/quast",
+    shell:
+        r"""
+        quast.py \
+            {input} \
+            -o {params.outdir} \
+            --threads {threads} \
+            > {log} 2>&1
+        """
+
+
+rule checkv:
+    """CheckV end_to_end — completeness, contamination, host removal, DTR detection.
+    Requires CheckV DB at {CHECKV_DB_CURRENT} — set up by `./pipeline.sh install`."""
+    input:
+        fasta = medaka_fasta,
+    output:
+        summary = f"{OUTDIR}/qc_assembly/{{sample}}/checkv/quality_summary.tsv",
+        completeness = f"{OUTDIR}/qc_assembly/{{sample}}/checkv/completeness.tsv",
+        contamination = f"{OUTDIR}/qc_assembly/{{sample}}/checkv/contamination.tsv",
+    log:
+        f"{OUTDIR}/qc_assembly/{{sample}}/checkv.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-qc-asm"
+    params:
+        outdir = lambda w: f"{OUTDIR}/qc_assembly/{w.sample}/checkv",
+        db = CHECKV_DB_CURRENT,
+    shell:
+        r"""
+        rm -rf {params.outdir}
+        checkv end_to_end \
+            {input.fasta} \
+            {params.outdir} \
+            -d {params.db} \
+            -t {threads} \
+            > {log} 2>&1
+        """

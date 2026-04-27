@@ -1,0 +1,175 @@
+"""
+qc_reads — raw Nanopore read QC and filtering.
+
+Stage 1. Inputs: raw FASTQ. Outputs: NanoPlot reports (pre/post filter),
+a length+quality-filtered FASTQ for downstream assembly, and a residual
+adapter scan to verify basecaller-level trimming.
+
+Tools:
+  - NanoPlot   read length / quality plots
+  - Filtlong   length + quality filtering, optional subsampling
+  - seqkit     adapter sequence detection (no trimming, just verification)
+"""
+
+OUTDIR = config["outdir"]
+SAMPLES = config["samples"]
+
+
+def raw_fastq(wildcards):
+    return SAMPLES[wildcards.sample]["fastq"]
+
+
+rule nanoplot_raw:
+    """Read length and quality summary on the raw input FASTQ."""
+    input:
+        raw_fastq,
+    output:
+        html = f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_raw/NanoPlot-report.html",
+        stats = f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_raw/NanoStats.txt",
+    log:
+        f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_raw.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-qc-reads"
+    params:
+        outdir = lambda w: f"{OUTDIR}/qc_reads/{w.sample}/nanoplot_raw",
+    shell:
+        r"""
+        NanoPlot \
+            --fastq {input} \
+            --outdir {params.outdir} \
+            --threads {threads} \
+            --tsv_stats \
+            > {log} 2>&1
+        """
+
+
+rule filtlong:
+    """Filter reads by length and mean quality; optional total-bases subsampling."""
+    input:
+        raw_fastq,
+    output:
+        f"{OUTDIR}/qc_reads/{{sample}}/filtered.fastq.gz",
+    log:
+        f"{OUTDIR}/qc_reads/{{sample}}/filtlong.log",
+    threads: 1  # filtlong is single-threaded
+    conda:
+        "nanopore-assembly-qc-reads"
+    params:
+        min_length = config["read_filter"]["min_length"],
+        min_mean_q = config["read_filter"]["min_mean_q"],
+        target_arg = (
+            f"--target_bases {config['read_filter']['target_bases']}"
+            if config["read_filter"]["target_bases"] > 0
+            else ""
+        ),
+    shell:
+        r"""
+        filtlong \
+            --min_length {params.min_length} \
+            --min_mean_q {params.min_mean_q} \
+            {params.target_arg} \
+            {input} 2> {log} \
+            | gzip > {output}
+        """
+
+
+rule nanoplot_filtered:
+    """Read length and quality summary on the filtered FASTQ — for before/after comparison."""
+    input:
+        rules.filtlong.output,
+    output:
+        html = f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_filtered/NanoPlot-report.html",
+        stats = f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_filtered/NanoStats.txt",
+    log:
+        f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_filtered.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-qc-reads"
+    params:
+        outdir = lambda w: f"{OUTDIR}/qc_reads/{w.sample}/nanoplot_filtered",
+    shell:
+        r"""
+        NanoPlot \
+            --fastq {input} \
+            --outdir {params.outdir} \
+            --threads {threads} \
+            --tsv_stats \
+            > {log} 2>&1
+        """
+
+
+rule qc_summary:
+    """Normalize NanoPlot stats (raw + filtered) into a flat per-sample TSV.
+
+    Splits NanoStats compound cells (e.g. 'Reads >Q15: 315 (76.1%) 7.1Mb')
+    into separate columns, computes pct reads/bases retained by filtering,
+    and emits a single-row TSV matching the shape of QUAST/CheckV outputs.
+    Centralizes the messy NanoPlot parsing in one place — downstream
+    consumers (e.g. the report) read this file, not NanoStats directly.
+    """
+    input:
+        raw_stats = rules.nanoplot_raw.output.stats,
+        filtered_stats = rules.nanoplot_filtered.output.stats,
+    output:
+        summary = f"{OUTDIR}/qc_reads/{{sample}}/qc_summary.tsv",
+    log:
+        f"{OUTDIR}/qc_reads/{{sample}}/qc_summary.log",
+    threads: 1
+    conda:
+        "nanopore-assembly-qc-reads"
+    script:
+        "scripts/summarize_qc.py"
+
+
+rule adapter_scan:
+    """Scan filtered reads for residual ONT Y-adapter sequences.
+
+    Modern Dorado/Guppy basecallers trim adapters by default during
+    basecalling, and demultiplexing strips barcode adapters. This rule does
+    NOT trim — it scans both strands of every read for known adapter motifs
+    (allowing 3 mismatches) and reports counts. A non-zero hit count means
+    basecaller-level trimming missed something and an explicit adapter-
+    removal step (e.g. Porechop_ABI) should be added.
+
+    Y-adapter sequences from the SQK-LSK ligation kit (ONT's most common prep).
+    """
+    input:
+        rules.filtlong.output,
+    output:
+        summary = f"{OUTDIR}/qc_reads/{{sample}}/adapter_scan.tsv",
+    log:
+        f"{OUTDIR}/qc_reads/{{sample}}/adapter_scan.log",
+    threads: 1
+    conda:
+        "nanopore-assembly-qc-reads"
+    params:
+        adapter_top = "AATGTACTTCGTTCAGTTACGTATTGCT",
+        adapter_bot = "GCAATACGTAACTGAACGAAGT",
+        max_mismatches = 3,
+    shell:
+        r"""
+        set -o pipefail
+        total=$(seqkit stats -T {input} 2>/dev/null | awk 'NR==2 {{print $4}}')
+
+        top=$(seqkit locate -i -m {params.max_mismatches} \
+                -p {params.adapter_top} {input} 2>>{log} \
+              | awk 'NR>1 {{print $1}}' | sort -u | wc -l)
+
+        bot=$(seqkit locate -i -m {params.max_mismatches} \
+                -p {params.adapter_bot} {input} 2>>{log} \
+              | awk 'NR>1 {{print $1}}' | sort -u | wc -l)
+
+        any=$(seqkit locate -i -m {params.max_mismatches} \
+                -p {params.adapter_top} -p {params.adapter_bot} {input} 2>>{log} \
+              | awk 'NR>1 {{print $1}}' | sort -u | wc -l)
+
+        {{
+          printf "metric\tvalue\n"
+          printf "total_reads\t%s\n" "$total"
+          printf "reads_with_top_adapter\t%s\n" "$top"
+          printf "reads_with_bottom_adapter\t%s\n" "$bot"
+          printf "reads_with_any_adapter\t%s\n" "$any"
+          printf "max_mismatches_allowed\t%s\n" "{params.max_mismatches}"
+        }} > {output.summary}
+        """

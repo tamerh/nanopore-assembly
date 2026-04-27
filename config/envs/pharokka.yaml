@@ -1,0 +1,7 @@
+name: nanopore-assembly-pharokka
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - pharokka>=1.7

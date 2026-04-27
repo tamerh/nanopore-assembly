@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nanopore Phage Assembly Report — {{ project }}</title>
+<style>
+  /* ---- base ---- */
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem;
+         line-height: 1.55; color: #1a1a1a; background: #fafbfc; }
+  h1 { border-bottom: 3px solid #2c5282; padding-bottom: 0.4rem; margin-bottom: 0.3rem; }
+  h2 { color: #2c5282; margin-top: 2.5rem; padding-bottom: 0.2rem;
+       border-bottom: 1px solid #e2e8f0; }
+  h3 { color: #2d3748; margin-top: 1.5rem; }
+  h4 { color: #2d3748; margin-top: 1rem; margin-bottom: 0.4rem; }
+  .header-meta { color: #4a5568; font-size: 0.95rem; margin-top: 0.2rem; }
+  .muted { color: #718096; font-size: 0.9rem; }
+  ol li, ul li { margin: 0.3rem 0; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 2.5rem 0 1rem; }
+  code { background: #edf2f7; padding: 0.1em 0.35em; border-radius: 3px;
+         font-size: 0.92em; }
+  a { color: #2c5282; }
+
+  /* ---- tables ---- */
+  table { border-collapse: collapse; margin: 0.4rem 0 0.8rem; background: white; }
+  th, td { padding: 0.4rem 0.8rem; border: 1px solid #cbd5e0; text-align: left; }
+  th { background: #edf2f7; font-weight: 600; }
+  td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ---- TOC ---- */
+  .toc {
+    background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px;
+    padding: 0.6rem 1rem; margin: 1.2rem 0 1.8rem; font-size: 0.92rem;
+  }
+  .toc-label { color: #4a5568; font-weight: 600; margin-right: 0.5rem; }
+  .toc a {
+    text-decoration: none; padding: 0.1em 0.4em; border-radius: 3px;
+    background: #fff; border: 1px solid #cbd5e0;
+    margin: 0 0.15rem 0.2rem 0; display: inline-block;
+  }
+  .toc a:hover { background: #2c5282; color: white; border-color: #2c5282; }
+
+  /* ---- summary card (per sample headline) ---- */
+  .summary-card {
+    background: linear-gradient(135deg, #f0f4f8, #e2e8f0);
+    border: 1px solid #cbd5e0; border-radius: 8px;
+    padding: 1.1rem 1.3rem; margin: 0.8rem 0 1.4rem;
+  }
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem 1.5rem;
+  }
+  .summary-item { border-left: 3px solid #4a6896; padding-left: 0.8rem; }
+  .summary-label {
+    color: #4a5568; font-size: 0.78rem; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 0.15rem;
+  }
+  .summary-value {
+    font-size: 1.15rem; font-weight: 600; color: #1a1a1a; line-height: 1.25;
+  }
+  .summary-meta { color: #4a5568; font-size: 0.85rem; margin-top: 0.15rem; }
+
+  /* ---- stage cards (the 5 pipeline stages) ---- */
+  .stage-card {
+    border: 1px solid #cbd5e0; border-radius: 8px;
+    margin: 0.4rem 0; background: white; overflow: hidden;
+  }
+  .stage-header {
+    display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+    padding: 0.55rem 1rem;
+    background: linear-gradient(to right, #2c5282, #4a6896); color: white;
+  }
+  .stage-num {
+    font-size: 1.0rem; font-weight: 700;
+    background: rgba(255,255,255,0.18); border-radius: 50%;
+    width: 1.7em; height: 1.7em;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .stage-name {
+    font-size: 1.08rem; font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  .stage-tools {
+    font-size: 0.86rem; color: rgba(255,255,255,0.9);
+    margin-left: auto; font-style: italic;
+  }
+  .stage-body { padding: 0.6rem 1.2rem 1rem; }
+  .stage-flow {
+    text-align: center; color: #a0aec0; font-size: 1.6rem;
+    line-height: 1; margin: -0.1rem 0;
+  }
+
+  /* ---- details / collapsibles ---- */
+  details {
+    margin: 0.7rem 0;
+    border: 1px solid #e2e8f0; border-radius: 5px;
+    background: #fafbfc;
+  }
+  details summary {
+    cursor: pointer; padding: 0.5rem 0.85rem;
+    color: #2c5282; font-weight: 500; user-select: none;
+    list-style: none;
+  }
+  details summary::before {
+    content: "▶"; display: inline-block; margin-right: 0.5em;
+    font-size: 0.75em; transition: transform 0.15s;
+  }
+  details[open] summary::before { transform: rotate(90deg); }
+  details summary::-webkit-details-marker { display: none; }
+  details > :not(summary) { padding: 0 0.85rem 0.7rem; }
+
+  /* ---- callout (rare; metadata-driven) ---- */
+  .callout {
+    background: #fef3c7; border-left: 4px solid #f59e0b;
+    padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 3px;
+  }
+
+  /* ---- print ---- */
+  @media print {
+    body { background: white; }
+    details { border: none; }
+    details summary::before { content: none; }
+    details > :not(summary) { padding-left: 0; }
+    .stage-header { background: #4a6896 !important; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Nanopore Phage Assembly Report</h1>
+<p class="header-meta">
+  <strong>Project:</strong> <code>{{ project }}</code> &middot;
+  <strong>Samples:</strong> {{ samples | length }} &middot;
+  <strong>Pipeline:</strong> Snakemake (5 stages, modular) &middot;
+  <strong>Generated:</strong> {{ generated_at }}
+</p>
+
+<nav class="toc">
+  <span class="toc-label">Jump to:</span>
+  {% for sample in samples %}
+  <a href="#sample-{{ sample }}">sample {{ sample }}</a>
+  {% endfor %}
+  <a href="#software">software versions</a>
+  <a href="#methods">methods</a>
+  <a href="#limitations">limitations</a>
+</nav>
+
+{% for sample in samples %}
+{% set checkv = sample_data[sample].checkv[0] %}
+{% set tax = sample_data[sample].pharokka_tax[0] %}
+{% set flye = sample_data[sample].flye_info[0] %}
+{% set raw = sample_data[sample].raw_stats %}
+{% set filt = sample_data[sample].filt_stats %}
+{% set adp = sample_data[sample].adapter_scan %}
+{% set any_pct = (adp.reads_with_any_adapter / adp.total_reads * 100) if adp.total_reads else 0 %}
+
+{# Lifestyle inference: scan pharokka_cds for integration/excision count #}
+{% set ns = namespace(integ=0) %}
+{% for row in sample_data[sample].pharokka_cds %}
+  {% if row.Description == "integration and excision" %}{% set ns.integ = row.Count %}{% endif %}
+{% endfor %}
+{% set lifestyle = "Lytic" if ns.integ == 0 else "Temperate (likely)" %}
+{% set lifestyle_note = ("0 integration/excision genes — cannot integrate into host chromosome" if ns.integ == 0
+                          else (ns.integ ~ " integration/excision genes")) %}
+
+<h2 id="sample-{{ sample }}">Sample <code>{{ sample }}</code>{% if sample_data[sample].metadata.host %} ·
+  <span class="muted">labelled host: {{ sample_data[sample].metadata.host }}</span>{% endif %}</h2>
+
+{# ─── headline summary card ─── #}
+<section class="summary-card">
+  <div class="summary-grid">
+    <div class="summary-item">
+      <div class="summary-label">Assembly</div>
+      <div class="summary-value">{{ flye.length | fmt }} bp</div>
+      <div class="summary-meta">
+        {{ sample_data[sample].flye_info | length }} contig{% if sample_data[sample].flye_info | length != 1 %}s{% endif %}
+        · {{ flye['circ.'] }} circular · {{ flye['cov.'] }}× cov.
+      </div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">CheckV quality</div>
+      <div class="summary-value">{{ checkv.checkv_quality }}</div>
+      <div class="summary-meta">
+        {{ checkv.completeness }}% complete · {{ checkv.contamination }}% contam.
+      </div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Top INPHARED match</div>
+      <div class="summary-value" style="font-size:1rem">{{ tax.Description }}</div>
+      <div class="summary-meta">
+        <code>{{ tax.Accession }}</code> · {{ tax.mash_matching_hashes }} hashes (d={{ '%.1e' | format(tax.mash_distance) }})
+      </div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">Lifestyle</div>
+      <div class="summary-value">{{ lifestyle }}</div>
+      <div class="summary-meta">{{ lifestyle_note }}</div>
+    </div>
+  </div>
+</section>
+
+{# Optional callout — fires only when sample sheet provides a host that
+   disagrees with the placed host. Inert when `host` column absent. #}
+{% set labelled_host = sample_data[sample].metadata.host or '' %}
+{% set placed_host = tax.Host or '' %}
+{% if placed_host and labelled_host and placed_host.lower() not in labelled_host.lower() %}
+<div class="callout">
+  <strong>Notable finding — taxonomy disagrees with sample label.</strong>
+  Sample-sheet labelled host <em>{{ labelled_host }}</em>; INPHARED placement
+  returned <strong>{{ tax.Description }}</strong> (host
+  <strong>{{ tax.Host }}</strong>). The pipeline followed the data, not the label.
+</div>
+{% endif %}
+
+{# ─── Stage 1: qc_reads ─── #}
+<section class="stage-card">
+  <header class="stage-header">
+    <span class="stage-num">1</span>
+    <span class="stage-name">qc_reads</span>
+    <span class="stage-tools">NanoPlot · Filtlong · seqkit</span>
+  </header>
+  <div class="stage-body">
+    <h4>Read QC — raw vs filtered</h4>
+    <table>
+      <tr><th>Metric</th><th>Raw</th><th>Filtered</th></tr>
+      <tr><td>Reads</td><td class="numeric">{{ raw.n_reads | fmt }}</td><td class="numeric">{{ filt.n_reads | fmt }}</td></tr>
+      <tr><td>Total bases</td><td class="numeric">{{ raw.n_bases | fmt }}</td><td class="numeric">{{ filt.n_bases | fmt }}</td></tr>
+      <tr><td>Median read length</td><td class="numeric">{{ raw.median_length | fmt }}</td><td class="numeric">{{ filt.median_length | fmt }}</td></tr>
+      <tr><td>N50</td><td class="numeric">{{ raw.n50 | fmt }}</td><td class="numeric">{{ filt.n50 | fmt }}</td></tr>
+      <tr><td>Mean Q</td><td class="numeric">{{ raw.mean_q | fmt }}</td><td class="numeric">{{ filt.mean_q | fmt }}</td></tr>
+      <tr><td>Median Q</td><td class="numeric">{{ raw.median_q | fmt }}</td><td class="numeric">{{ filt.median_q | fmt }}</td></tr>
+    </table>
+
+    <details>
+      <summary>Residual adapter scan ({{ adp.reads_with_any_adapter | fmt }} / {{ adp.total_reads | fmt }} reads — {{ '%.2f' | format(any_pct) }}%)</summary>
+      <table>
+        <tr><th>Adapter motif</th><th>Reads with hit</th></tr>
+        <tr><td>SQK-LSK Y-adapter top</td><td class="numeric">{{ adp.reads_with_top_adapter | fmt }}</td></tr>
+        <tr><td>SQK-LSK Y-adapter bottom</td><td class="numeric">{{ adp.reads_with_bottom_adapter | fmt }}</td></tr>
+        <tr><td>Any (union)</td><td class="numeric">{{ adp.reads_with_any_adapter | fmt }} / {{ adp.total_reads | fmt }} ({{ '%.2f' | format(any_pct) }}%)</td></tr>
+      </table>
+      <p class="muted">Verification only — no trimming is performed. Modern
+      basecallers (Dorado, Guppy &gt;= 6) trim sequencing adapters by default;
+      demultiplexing strips barcode adapters. A non-trivial hit rate would
+      indicate basecaller-level trimming missed something and an explicit
+      adapter-removal step (e.g. Porechop_ABI between filtlong and assembly)
+      should be added. Allowed mismatches: {{ adp.max_mismatches_allowed }}.</p>
+    </details>
+  </div>
+</section>
+
+<div class="stage-flow">↓</div>
+
+{# ─── Stage 2: assembly ─── #}
+<section class="stage-card">
+  <header class="stage-header">
+    <span class="stage-num">2</span>
+    <span class="stage-name">assembly</span>
+    <span class="stage-tools">Flye --nano-hq · medaka</span>
+  </header>
+  <div class="stage-body">
+    <h4>Assembly stats</h4>
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>Contigs</td><td class="numeric">{{ sample_data[sample].flye_info | length }}</td></tr>
+      <tr><td>Length</td><td class="numeric">{{ flye.length | fmt }} bp</td></tr>
+      <tr><td>Coverage</td><td class="numeric">{{ flye['cov.'] }}×</td></tr>
+      <tr><td>Circular (graph-level)</td><td>{{ flye['circ.'] }}</td></tr>
+      <tr><td>Repeat resolution issues</td><td>{{ flye['repeat'] }}</td></tr>
+    </table>
+  </div>
+</section>
+
+<div class="stage-flow">↓</div>
+
+{# ─── Stage 3: qc_assembly ─── #}
+<section class="stage-card">
+  <header class="stage-header">
+    <span class="stage-num">3</span>
+    <span class="stage-name">qc_assembly</span>
+    <span class="stage-tools">seqkit · QUAST · CheckV</span>
+  </header>
+  <div class="stage-body">
+    <h4>CheckV — viral genome QC</h4>
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>CheckV quality tier</td><td><strong>{{ checkv.checkv_quality }}</strong></td></tr>
+      <tr><td>Completeness</td><td>{{ checkv.completeness }}% &nbsp;<span class="muted">({{ checkv.completeness_method }})</span></td></tr>
+      <tr><td>Contamination</td><td>{{ checkv.contamination }}%</td></tr>
+      <tr><td>Provirus</td><td>{{ checkv.provirus }}</td></tr>
+      <tr><td>Genes &mdash; viral / host</td><td>{{ checkv.viral_genes }} / {{ checkv.host_genes }}</td></tr>
+    </table>
+  </div>
+</section>
+
+<div class="stage-flow">↓</div>
+
+{# ─── Stage 4: characterize ─── #}
+<section class="stage-card">
+  <header class="stage-header">
+    <span class="stage-num">4</span>
+    <span class="stage-name">characterize</span>
+    <span class="stage-tools">Pharokka (PHANOTATE · PHROGS · INPHARED · dnaapler)</span>
+  </header>
+  <div class="stage-body">
+    <h4>Closest INPHARED match</h4>
+    <table>
+      <tr><th>Field</th><th>Value</th></tr>
+      <tr><td>Description</td><td>{{ tax.Description }}</td></tr>
+      <tr><td>GenBank accession</td><td><code>{{ tax.Accession }}</code></td></tr>
+      <tr><td>Reference length</td><td class="numeric">{{ tax['Genome_Length_(bp)'] | fmt }} bp</td></tr>
+      <tr><td>Reference GC</td><td class="numeric">{{ tax['molGC_(%)'] | fmt }}%</td></tr>
+      <tr><td>Mash distance</td><td>{{ '%.2e' | format(tax.mash_distance) }}</td></tr>
+      <tr><td>Matching hashes</td><td>{{ tax.mash_matching_hashes }}</td></tr>
+      <tr><td>Isolation host</td><td>{{ tax.Host }}</td></tr>
+    </table>
+
+    <details>
+      <summary>Taxonomic placement (full hierarchy)</summary>
+      <table>
+        <tr><th>Rank</th><th>Assignment</th></tr>
+        <tr><td>Realm</td><td>{{ tax.Realm }}</td></tr>
+        <tr><td>Kingdom</td><td>{{ tax.Kingdom }}</td></tr>
+        <tr><td>Phylum</td><td>{{ tax.Phylum }}</td></tr>
+        <tr><td>Class</td><td>{{ tax.Class }}</td></tr>
+        <tr><td>Order</td><td>{{ tax.Order }}</td></tr>
+        <tr><td>Family</td><td>{{ tax.Family }}</td></tr>
+        <tr><td>Sub-family</td><td>{{ tax['Sub-family'] }}</td></tr>
+        <tr><td>Genus</td><td>{{ tax.Genus }}</td></tr>
+      </table>
+      <p class="muted">"Unclassified" at finer ranks is normal for many phages —
+      they sit on Caudoviricetes-class branches with no formally named
+      order/family/genus assignment.</p>
+    </details>
+
+    <details>
+      <summary>Functional categories (PHROGs) — {{ sample_data[sample].pharokka_cds | length }} categories</summary>
+      <table>
+        <tr><th>Category</th><th>Count</th></tr>
+        {% for row in sample_data[sample].pharokka_cds %}
+        <tr><td>{{ row.Description }}</td><td class="numeric">{{ row.Count | fmt }}</td></tr>
+        {% endfor %}
+      </table>
+      <p class="muted">Lifestyle inference: {{ lifestyle_note }} → <strong>{{ lifestyle }}</strong>.</p>
+    </details>
+  </div>
+</section>
+
+<div class="stage-flow">↓</div>
+
+{# ─── Stage 5: report ─── #}
+<section class="stage-card">
+  <header class="stage-header">
+    <span class="stage-num">5</span>
+    <span class="stage-name">report</span>
+    <span class="stage-tools">MultiQC · Python+Jinja2</span>
+  </header>
+  <div class="stage-body">
+    <p>Per-tool aggregate metrics (NanoPlot + QUAST) are bundled in the
+    <a href="{{ multiqc_link }}">MultiQC report</a>.
+    CheckV and Pharokka outputs are surfaced in the per-stage cards above.</p>
+  </div>
+</section>
+
+{% endfor %}
+
+<h2 id="software">Software versions</h2>
+<details>
+  <summary>{{ versions | length }} tools across {{ versions | map(attribute='environment') | unique | list | length }} conda envs — click to expand</summary>
+  <table>
+    <tr><th>Tool</th><th>Version</th><th>Environment</th></tr>
+    {% for row in versions %}
+    <tr>
+      <td>{{ row.tool }}</td>
+      <td><code>{{ row.version }}</code></td>
+      <td class="muted">{{ row.environment }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="muted">Versions captured at run time from each per-rule conda
+  environment via <code>conda list --json</code>.</p>
+</details>
+
+<h2 id="methods">Methods</h2>
+
+<p>Reads were processed through a five-stage Snakemake pipeline. Per-rule
+conda environments are pre-built via <code>./pipeline.sh install</code>; the
+project layout is sample-sheet-driven (<code>config/projects/&lt;project&gt;/samples.tsv</code>).</p>
+
+<ol>
+<li><strong>Read QC + filtering.</strong> NanoPlot summarized raw read length
+and quality. Filtlong removed reads &lt; 1 kb and below ~Q10 mean
+quality, and subsampled to the highest-quality 10 Mb of reads (~100×
+coverage on a typical 100 kb phage). A residual-adapter scan verified
+that basecaller-level trimming removed sequencing adapters.</li>
+
+<li><strong>Assembly + polishing.</strong> Flye <code>--nano-hq</code>
+assembled the filtered reads. medaka polished the draft using a model
+matched to the basecaller (<code>r1041_e82_260bps_hac_v4.1.0</code> for
+R10.4.1 HAC data). Mismatched models silently degrade quality, so the
+match is enforced by config.</li>
+
+<li><strong>Assembly QC.</strong> seqkit and QUAST reported basic stats;
+CheckV reported viral completeness, host contamination, and DTR
+detection.</li>
+
+<li><strong>Characterization.</strong> Pharokka ran end-to-end:
+PHANOTATE (phage-aware ORF caller), PyHMMER vs PHROGS for functional
+categories, tRNAscan-SE for tRNAs, MinCED for CRISPR arrays, and Mash
+vs INPHARED for taxonomic placement against published phage genomes.
+<code>--dnaapler</code> rotated the assembly to start at the terminase
+large subunit.</li>
+
+<li><strong>Report.</strong> MultiQC aggregated tool outputs; this HTML
+was rendered from the per-stage TSVs by a Python + Jinja2 script.</li>
+</ol>
+
+<h2 id="limitations">Limitations and future work</h2>
+
+<p>This pipeline is a working prototype, not production-grade. Areas
+where further iteration would strengthen the deliverable:</p>
+
+<ul>
+<li><strong>Single sample exercised.</strong> The pipeline is
+sample-sheet driven and supports N samples, but has only been run on
+one. Multiplexed runs with mixed phage hosts would benefit from a
+per-sample taxonomy gate before host-specific annotation.</li>
+
+<li><strong>Isolate scope per the assignment brief.</strong> Pipeline
+assumes single-genome input. Metagenomic input would require a different
+pipeline shape (host-read removal, Flye <code>--meta</code>, geNomad
+classification, per-contig characterization, distributional report) —
+not a config flag, so out of scope here.</li>
+
+<li><strong>HTML only — no PDF rendering.</strong> The assignment asked
+for HTML or PDF, and HTML carries everything the report needs (tables,
+links, embedded styling).</li>
+
+<li><strong>No reference-based validation rule.</strong> The closest
+INPHARED match is reported but not pulled and aligned. A
+<code>dnadiff</code> or <code>nucmer</code> comparison against the
+top hit would quantify identity beyond Mash hashes.</li>
+
+<li><strong>Polishing is single-pass.</strong> One round of medaka with
+a basecaller-matched model. Sufficient for R10.4.1 HAC; SUP often
+needs zero polishing.</li>
+
+<li><strong>Logs co-located with outputs.</strong> Cleaner for shipping
+a project archive but slightly off the Snakemake convention of a
+top-level <code>logs/</code> directory.</li>
+</ul>
+
+<hr>
+<p class="muted">Generated automatically by the <code>report</code> module.
+Source: <code>modules/report/scripts/build_report.py</code> +
+<code>modules/report/templates/report.html.j2</code>.</p>
+
+</body>
+</html>

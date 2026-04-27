@@ -1,0 +1,73 @@
+"""
+assembly — de novo assembly and polishing.
+
+Stage 2. Inputs: filtered FASTQ from qc_reads. Outputs: polished assembly
+FASTA and Flye's `assembly_info.txt` (per-contig circularity flag, length,
+coverage).
+
+Tools:
+  - Flye     long-read assembler; reports per-contig circularity
+  - medaka   ONT-aware consensus polisher; model must match the basecaller
+"""
+
+OUTDIR = config["outdir"]
+SAMPLES = config["samples"]
+
+
+def filtered_fastq(wildcards):
+    return f"{OUTDIR}/qc_reads/{wildcards.sample}/filtered.fastq.gz"
+
+
+rule flye:
+    """De novo assembly with Flye. --nano-hq for R10.4.1 HAC/SUP data."""
+    input:
+        filtered_fastq,
+    output:
+        fasta = f"{OUTDIR}/assembly/{{sample}}/flye/assembly.fasta",
+        graph = f"{OUTDIR}/assembly/{{sample}}/flye/assembly_graph.gfa",
+        info  = f"{OUTDIR}/assembly/{{sample}}/flye/assembly_info.txt",
+    log:
+        f"{OUTDIR}/assembly/{{sample}}/flye.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-flye"
+    params:
+        outdir = lambda w: f"{OUTDIR}/assembly/{w.sample}/flye",
+        genome_size = config["assembly"]["genome_size"],
+    shell:
+        r"""
+        flye \
+            --nano-hq {input} \
+            --genome-size {params.genome_size} \
+            --out-dir {params.outdir} \
+            --threads {threads} \
+            > {log} 2>&1
+        """
+
+
+rule medaka:
+    """Polish the Flye assembly with medaka. Model must match the basecaller."""
+    input:
+        reads = filtered_fastq,
+        draft = rules.flye.output.fasta,
+    output:
+        fasta = f"{OUTDIR}/assembly/{{sample}}/medaka/consensus.fasta",
+    log:
+        f"{OUTDIR}/assembly/{{sample}}/medaka.log",
+    threads: config["threads"]
+    conda:
+        "nanopore-assembly-medaka"
+    params:
+        outdir = lambda w: f"{OUTDIR}/assembly/{w.sample}/medaka",
+        model = config["medaka"]["model"],
+    shell:
+        r"""
+        medaka_consensus \
+            -i {input.reads} \
+            -d {input.draft} \
+            -o {params.outdir} \
+            -m {params.model} \
+            -t {threads} \
+            -f \
+            > {log} 2>&1
+        """
