@@ -141,8 +141,6 @@
   <a href="#sample-{{ sample }}">sample {{ sample }}</a>
   {% endfor %}
   <a href="#software">software versions</a>
-  <a href="#methods">methods</a>
-  <a href="#limitations">limitations</a>
 </nav>
 
 {% for sample in samples %}
@@ -364,6 +362,26 @@
 
 {% endfor %}
 
+<h2 id="config">Configuration used</h2>
+<details>
+  <summary>Pipeline parameters from <code>config/config.yaml</code> — click to expand</summary>
+  <table>
+    <tr><th>Stage</th><th>Parameter</th><th>Value</th></tr>
+    <tr><td>qc_reads</td><td><code>read_filter.min_length</code></td><td class="numeric">{{ config.read_filter.min_length | fmt }}</td></tr>
+    <tr><td>qc_reads</td><td><code>read_filter.min_mean_q</code></td><td class="numeric">{{ config.read_filter.min_mean_q | fmt }}</td></tr>
+    <tr><td>qc_reads</td><td><code>read_filter.target_bases</code></td><td class="numeric">{{ config.read_filter.target_bases | fmt }}</td></tr>
+    <tr><td>assembly</td><td><code>assembly.genome_size</code></td><td><code>{{ config.assembly.genome_size }}</code></td></tr>
+    <tr><td>assembly</td><td><code>medaka.model</code></td><td><code>{{ config.medaka.model }}</code></td></tr>
+    <tr><td>qc_assembly</td><td><code>qc.min_contig_length</code></td><td class="numeric">{{ config.qc.min_contig_length | fmt }}</td></tr>
+    <tr><td>qc_assembly</td><td><code>checkv.db_path</code></td><td><code>{{ config.checkv.db_path }}</code></td></tr>
+    <tr><td>characterize</td><td><code>pharokka.db_path</code></td><td><code>{{ config.pharokka.db_path }}</code></td></tr>
+    <tr><td>—</td><td><code>threads</code></td><td class="numeric">{{ config.threads | fmt }}</td></tr>
+  </table>
+  <p class="muted">Hardcoded tool flags (Flye <code>--nano-hq</code>,
+  Pharokka <code>--dnaapler</code>, medaka <code>-f</code>) live in the
+  rule shell commands rather than config; not shown here.</p>
+</details>
+
 <h2 id="software">Software versions</h2>
 <details>
   <summary>{{ versions | length }} tools across {{ versions | map(attribute='environment') | unique | list | length }} conda envs — click to expand</summary>
@@ -380,75 +398,6 @@
   <p class="muted">Versions captured at run time from each per-rule conda
   environment via <code>conda list --json</code>.</p>
 </details>
-
-<h2 id="methods">Methods</h2>
-
-<p>Reads were processed through a five-stage Snakemake pipeline. Per-rule
-conda environments are pre-built via <code>./pipeline.sh install</code>; the
-project layout is sample-sheet-driven (<code>config/projects/&lt;project&gt;/samples.tsv</code>).</p>
-
-<ol>
-<li><strong>Read QC + filtering.</strong> NanoPlot summarized raw read length
-and quality. Filtlong removed reads &lt; 1 kb and below ~Q10 mean
-quality, and subsampled to the highest-quality 10 Mb of reads (~100×
-coverage on a typical 100 kb phage). A residual-adapter scan verified
-that basecaller-level trimming removed sequencing adapters.</li>
-
-<li><strong>Assembly + polishing.</strong> Flye <code>--nano-hq</code>
-assembled the filtered reads. medaka polished the draft using a model
-matched to the basecaller (<code>r1041_e82_260bps_hac_v4.1.0</code> for
-R10.4.1 HAC data). Mismatched models silently degrade quality, so the
-match is enforced by config.</li>
-
-<li><strong>Assembly QC.</strong> seqkit and QUAST reported basic stats;
-CheckV reported viral completeness, host contamination, and DTR
-detection.</li>
-
-<li><strong>Characterization.</strong> Pharokka ran end-to-end:
-PHANOTATE (phage-aware ORF caller), PyHMMER vs PHROGS for functional
-categories, tRNAscan-SE for tRNAs, MinCED for CRISPR arrays, and Mash
-vs INPHARED for taxonomic placement against published phage genomes.
-<code>--dnaapler</code> rotated the assembly to start at the terminase
-large subunit.</li>
-
-<li><strong>Report.</strong> MultiQC aggregated tool outputs; this HTML
-was rendered from the per-stage TSVs by a Python + Jinja2 script.</li>
-</ol>
-
-<h2 id="limitations">Limitations and future work</h2>
-
-<p>This pipeline is a working prototype, not production-grade. Areas
-where further iteration would strengthen the deliverable:</p>
-
-<ul>
-<li><strong>Single sample exercised.</strong> The pipeline is
-sample-sheet driven and supports N samples, but has only been run on
-one. Multiplexed runs with mixed phage hosts would benefit from a
-per-sample taxonomy gate before host-specific annotation.</li>
-
-<li><strong>Isolate scope per the assignment brief.</strong> Pipeline
-assumes single-genome input. Metagenomic input would require a different
-pipeline shape (host-read removal, Flye <code>--meta</code>, geNomad
-classification, per-contig characterization, distributional report) —
-not a config flag, so out of scope here.</li>
-
-<li><strong>HTML only — no PDF rendering.</strong> The assignment asked
-for HTML or PDF, and HTML carries everything the report needs (tables,
-links, embedded styling).</li>
-
-<li><strong>No reference-based validation rule.</strong> The closest
-INPHARED match is reported but not pulled and aligned. A
-<code>dnadiff</code> or <code>nucmer</code> comparison against the
-top hit would quantify identity beyond Mash hashes.</li>
-
-<li><strong>Polishing is single-pass.</strong> One round of medaka with
-a basecaller-matched model. Sufficient for R10.4.1 HAC; SUP often
-needs zero polishing.</li>
-
-<li><strong>Logs co-located with outputs.</strong> Cleaner for shipping
-a project archive but slightly off the Snakemake convention of a
-top-level <code>logs/</code> directory.</li>
-</ul>
 
 <hr>
 <p class="muted">Generated automatically by the <code>report</code> module.

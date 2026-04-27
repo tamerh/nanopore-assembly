@@ -135,6 +135,7 @@ html = template.render(
     versions=versions,
     multiqc_link=str(multiqc_link),
     generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+    config=dict(sm.config),
 )
 
 Path(sm.output.html).write_text(html, encoding="utf-8")
