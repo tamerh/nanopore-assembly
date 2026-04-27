@@ -31,6 +31,9 @@ under `config/envs/`).
 
 ## Running
 
+To run the default `phage_demo` project, drop the test FASTQ
+`1_024_O.fastq.gz` into `resources/phage_demo/barcode09/` first.
+
 ```bash
 ./pipeline.sh dryrun      # preview the DAG (matches what `run` will execute)
 ./pipeline.sh run         # full pipeline run (default cores: 8)
