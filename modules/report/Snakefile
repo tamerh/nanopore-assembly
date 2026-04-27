@@ -3,7 +3,7 @@ report — bundled HTML report.
 
 Stage 5. Inputs: outputs of all previous stages. Outputs: a MultiQC
 aggregate (HTML) and a top-level standalone report (HTML) summarizing
-methods, results, and the headline finding per sample.
+results and the headline finding per sample.
 
 Tools:
   - MultiQC   aggregate per-tool outputs (NanoPlot, QUAST, ...)
@@ -65,7 +65,6 @@ rule build_report:
     """Render the top-level standalone HTML report from per-stage TSVs."""
     input:
         qc_summary = expand(f"{OUTDIR}/qc_reads/{{sample}}/qc_summary.tsv", sample=SAMPLES),
-        adapter_scan = expand(f"{OUTDIR}/qc_reads/{{sample}}/adapter_scan.tsv", sample=SAMPLES),
         flye_info = expand(f"{OUTDIR}/assembly/{{sample}}/flye/assembly_info.txt", sample=SAMPLES),
         seqkit = expand(f"{OUTDIR}/qc_assembly/{{sample}}/seqkit_stats.tsv", sample=SAMPLES),
         quast = expand(f"{OUTDIR}/qc_assembly/{{sample}}/quast/report.tsv", sample=SAMPLES),

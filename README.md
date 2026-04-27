@@ -6,7 +6,7 @@ target: **bacteriophage isolates** (tested on R10.4.1 chemistry, HAC basecalling
 ## Modules
 
 1. **qc_reads** — NanoPlot (raw + filtered), Filtlong (length/quality filter +
-   subsample), residual adapter scan, normalized per-sample QC summary
+   subsample), normalized per-sample QC summary
 2. **assembly** — Flye (`--nano-hq`) + medaka (basecaller-matched model)
 3. **qc_assembly** — seqkit + QUAST + CheckV (completeness, contamination, DTRs)
 4. **characterize** — Pharokka end-to-end: PHANOTATE ORFs, PHROGS functional
@@ -110,5 +110,9 @@ sample_02   reads.fastq.gz
 - Pipeline was exercised on HAC. Running on
   SUP data requires updating `config.medaka.model` to a SUP-trained model
   matching the basecaller version.
+- No explicit adapter trimming. Pipeline assumes basecaller-level adapter
+  trimming.
 - Logs are co-located with each rule's outputs for convenience; can be
   separated into a top-level `logs/` directory later if needed.
+- No automated tests — pipeline correctness is verified by end-to-end runs
+  on real data, not unit/integration tests.

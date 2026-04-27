@@ -98,7 +98,6 @@ for sample in samples:
         "raw_stats": raw_stats,
         "filt_stats": filt_stats,
         "qc_derived": qc_derived,
-        "adapter_scan": parse_kv_tsv(results_root / "qc_reads" / sample / "adapter_scan.tsv"),
         "flye_info": parse_flye_info(results_root / "assembly" / sample / "flye" / "assembly_info.txt"),
         "checkv": parse_simple_tsv(results_root / "qc_assembly" / sample / "checkv" / "quality_summary.tsv"),
         "pharokka_cds": parse_simple_tsv(results_root / "characterize" / sample / "pharokka" / "pharokka_cds_functions.tsv"),

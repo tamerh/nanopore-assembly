@@ -151,8 +151,6 @@
 {% set flye = sample_data[sample].flye_info[0] %}
 {% set raw = sample_data[sample].raw_stats %}
 {% set filt = sample_data[sample].filt_stats %}
-{% set adp = sample_data[sample].adapter_scan %}
-{% set any_pct = (adp.reads_with_any_adapter / adp.total_reads * 100) if adp.total_reads else 0 %}
 
 {# Lifestyle inference: scan pharokka_cds for integration/excision count #}
 {% set ns = namespace(integ=0) %}
@@ -217,7 +215,7 @@
   <header class="stage-header">
     <span class="stage-num">1</span>
     <span class="stage-name">qc_reads</span>
-    <span class="stage-tools">NanoPlot · Filtlong · seqkit</span>
+    <span class="stage-tools">NanoPlot · Filtlong</span>
   </header>
   <div class="stage-body">
     <h4>Read QC — raw vs filtered</h4>
@@ -230,22 +228,6 @@
       <tr><td>Mean Q</td><td class="numeric">{{ raw.mean_q | fmt }}</td><td class="numeric">{{ filt.mean_q | fmt }}</td></tr>
       <tr><td>Median Q</td><td class="numeric">{{ raw.median_q | fmt }}</td><td class="numeric">{{ filt.median_q | fmt }}</td></tr>
     </table>
-
-    <details>
-      <summary>Residual adapter scan ({{ adp.reads_with_any_adapter | fmt }} / {{ adp.total_reads | fmt }} reads — {{ '%.2f' | format(any_pct) }}%)</summary>
-      <table>
-        <tr><th>Adapter motif</th><th>Reads with hit</th></tr>
-        <tr><td>SQK-LSK Y-adapter top</td><td class="numeric">{{ adp.reads_with_top_adapter | fmt }}</td></tr>
-        <tr><td>SQK-LSK Y-adapter bottom</td><td class="numeric">{{ adp.reads_with_bottom_adapter | fmt }}</td></tr>
-        <tr><td>Any (union)</td><td class="numeric">{{ adp.reads_with_any_adapter | fmt }} / {{ adp.total_reads | fmt }} ({{ '%.2f' | format(any_pct) }}%)</td></tr>
-      </table>
-      <p class="muted">Verification only — no trimming is performed. Modern
-      basecallers (Dorado, Guppy &gt;= 6) trim sequencing adapters by default;
-      demultiplexing strips barcode adapters. A non-trivial hit rate would
-      indicate basecaller-level trimming missed something and an explicit
-      adapter-removal step (e.g. Porechop_ABI between filtlong and assembly)
-      should be added. Allowed mismatches: {{ adp.max_mismatches_allowed }}.</p>
-    </details>
   </div>
 </section>
 

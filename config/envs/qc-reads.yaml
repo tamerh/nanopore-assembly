@@ -7,4 +7,3 @@ dependencies:
   - python>=3.10
   - nanoplot>=1.42
   - filtlong>=0.2.1
-  - seqkit>=2.5

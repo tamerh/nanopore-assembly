@@ -94,7 +94,6 @@ rule all:
         expand(f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_raw/NanoStats.txt", sample=SAMPLES),
         expand(f"{OUTDIR}/qc_reads/{{sample}}/filtered.fastq.gz", sample=SAMPLES),
         expand(f"{OUTDIR}/qc_reads/{{sample}}/nanoplot_filtered/NanoStats.txt", sample=SAMPLES),
-        expand(f"{OUTDIR}/qc_reads/{{sample}}/adapter_scan.tsv", sample=SAMPLES),
         # assembly
         expand(f"{OUTDIR}/assembly/{{sample}}/flye/assembly_info.txt", sample=SAMPLES),
         expand(f"{OUTDIR}/assembly/{{sample}}/medaka/consensus.fasta", sample=SAMPLES),
