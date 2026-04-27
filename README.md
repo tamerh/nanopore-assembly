@@ -17,7 +17,8 @@ target: **bacteriophage isolates** (tested on R10.4.1 chemistry, HAC basecalling
 
 ## Setup
 
-Requires conda on PATH (mamba recommended for faster solving).
+Requires conda on PATH (mamba recommended for faster solving). Tested on
+Ubuntu Linux.
 
 ```bash
 ./pipeline.sh install     # create per-module conda envs + download
