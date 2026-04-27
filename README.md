@@ -102,12 +102,9 @@ sample_02   reads.fastq.gz
 - Single sample on a single project exercised — multi-sample and
   multi-project runs are supported by design but not stress-tested
 - Isolate-only — metagenomic input would require a different pipeline shape, not a config flag.
-- HTML report only (no PDF rendering wired in; the narrative is
-  self-contained HTML)
+- HTML report only (no PDF rendering wired in)
 - No reference-based pairwise validation rule — the closest INPHARED match
   is reported but not pulled and aligned
-- Single-pass medaka polish — sufficient for R10.4.1 HAC; SUP often needs
-  none, hybrid Illumina+ONT data could benefit from polypolish
 - Pipeline was exercised on HAC. Running on
   SUP data requires updating `config.medaka.model` to a SUP-trained model
   matching the basecaller version.
@@ -116,4 +113,4 @@ sample_02   reads.fastq.gz
 - Logs are co-located with each rule's outputs for convenience; can be
   separated into a top-level `logs/` directory later if needed.
 - No automated tests — pipeline correctness is verified by end-to-end runs
-  on real data, not unit/integration tests.
+  on real data.
