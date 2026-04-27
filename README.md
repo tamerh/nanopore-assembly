@@ -67,7 +67,7 @@ and output directory multi-project setups stay isolated. Default project is `pha
 │   └── projects/           # one folder per project, holding its sample sheet
 │       └── <project>/samples.tsv
 ├── resources/              # inputs + downloads (gitignored)
-│   ├── <project>/samples/<sample_id>/*.fastq.gz
+│   ├── <project>/<sample_id>/*.fastq.gz
 │   └── databases/          # downloaded reference DBs (CheckV, Pharokka)
 ├── results/<project>/      # pipeline outputs + per-rule logs (gitignored)
 │   ├── qc_reads/<sample>/

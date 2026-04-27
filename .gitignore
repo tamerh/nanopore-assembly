@@ -3,10 +3,10 @@ results/
 .snakemake/
 
 # Input data — keep folder structure, ignore the actual sequencing files
-resources/*/samples/**/*.fastq*
-resources/*/samples/**/*.fq*
-resources/*/samples/**/*.pod5
-resources/*/samples/**/*.fast5
+resources/*/**/*.fastq*
+resources/*/**/*.fq*
+resources/*/**/*.pod5
+resources/*/**/*.fast5
 
 # Downloaded reference databases (~GB-scale)
 resources/databases/

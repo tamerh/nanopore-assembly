@@ -42,7 +42,7 @@ if missing_cols:
 config["samples"] = {
     row["sample_id"]: {
         **row.to_dict(),
-        "fastq": f"resources/{PROJECT}/samples/{row['sample_id']}/{row['fastq_filename']}",
+        "fastq": f"resources/{PROJECT}/{row['sample_id']}/{row['fastq_filename']}",
     }
     for _, row in _sheet.iterrows()
 }
