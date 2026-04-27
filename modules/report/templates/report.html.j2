@@ -137,6 +137,7 @@
 
 <nav class="toc">
   <span class="toc-label">Jump to:</span>
+  <a href="#methods">methods</a>
   {% for sample in samples %}
   <a href="#sample-{{ sample }}">sample {{ sample }}</a>
   {% endfor %}
@@ -144,6 +145,42 @@
   <a href="#config">configuration</a>
   <a href="#software">software versions</a>
 </nav>
+
+<h2 id="methods">Methods</h2>
+
+<p>Reads are processed through a five-stage Snakemake pipeline. Each stage
+runs in its own conda environment; envs are pre-built via
+<code>./pipeline.sh install</code>. Per-run parameter values
+(filter thresholds, basecaller-matched medaka model, etc.) are dynamic
+from <code>config/config.yaml</code> — see
+<a href="#config">Configuration used</a> for what this specific run used.</p>
+
+<ol>
+<li><strong>Read QC + filtering.</strong> NanoPlot summarizes raw read
+length and quality. Filtlong filters by minimum length and mean quality,
+then subsamples to a target total-bases budget by selecting the
+highest-quality reads first.</li>
+
+<li><strong>Assembly + polishing.</strong> Flye (<code>--nano-hq</code>
+preset for R10.4.1) assembles the filtered reads and reports per-contig
+circularity. medaka polishes the draft consensus using a model matched
+to the basecaller (chemistry × accuracy mode).</li>
+
+<li><strong>Assembly QC.</strong> seqkit and QUAST report basic
+length/GC/N50 stats. CheckV reports viral genome completeness, host
+contamination, and direct-terminal-repeat (DTR) detection against
+its reference catalogue.</li>
+
+<li><strong>Characterization.</strong> Pharokka runs end-to-end:
+PHANOTATE (phage-aware ORF caller), PyHMMER vs PHROGS for functional
+categories, tRNAscan-SE for tRNAs, MinCED for CRISPR arrays, and Mash
+vs INPHARED for taxonomic placement against published phage genomes.
+<code>--dnaapler</code> rotates circular assemblies to start at the
+terminase large subunit.</li>
+
+<li><strong>Report.</strong> MultiQC aggregates per-tool outputs;
+this HTML is rendered from per-stage TSVs by a Python + Jinja2 script.</li>
+</ol>
 
 {% for sample in samples %}
 {% set checkv = sample_data[sample].checkv[0] %}
