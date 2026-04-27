@@ -140,6 +140,8 @@
   {% for sample in samples %}
   <a href="#sample-{{ sample }}">sample {{ sample }}</a>
   {% endfor %}
+  <a href="{{ multiqc_link }}">MultiQC report</a>
+  <a href="#config">configuration</a>
   <a href="#software">software versions</a>
 </nav>
 
@@ -341,22 +343,6 @@
       </table>
       <p class="muted">Lifestyle inference: {{ lifestyle_note }} → <strong>{{ lifestyle }}</strong>.</p>
     </details>
-  </div>
-</section>
-
-<div class="stage-flow">↓</div>
-
-{# ─── Stage 5: report ─── #}
-<section class="stage-card">
-  <header class="stage-header">
-    <span class="stage-num">5</span>
-    <span class="stage-name">report</span>
-    <span class="stage-tools">MultiQC · Python+Jinja2</span>
-  </header>
-  <div class="stage-body">
-    <p>Per-tool aggregate metrics (NanoPlot + QUAST) are bundled in the
-    <a href="{{ multiqc_link }}">MultiQC report</a>.
-    CheckV and Pharokka outputs are surfaced in the per-stage cards above.</p>
   </div>
 </section>
 
